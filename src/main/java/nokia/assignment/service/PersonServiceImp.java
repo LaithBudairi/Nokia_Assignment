@@ -22,7 +22,7 @@ public class PersonServiceImp implements PersonService {
     @Override
     public boolean add(Person person) {
         // Check mem
-        double memUsage = ((double) Runtime.getRuntime().freeMemory() / (double) Runtime.getRuntime().totalMemory()) * 100;
+        double memUsage = ((double) Runtime.getRuntime().freeMemory() / (double) Runtime.getRuntime().maxMemory()) * 100;
         if (memUsage >= 95) {
             return false;
         }
