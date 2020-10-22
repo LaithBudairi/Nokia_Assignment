@@ -5,6 +5,7 @@ import nokia.assignment.service.PersonServiceImp;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.web.server.LocalServerPort;
@@ -20,12 +21,12 @@ class AssignmentApplicationTests {
 
     @LocalServerPort
     private int port;
+    @Autowired
     private TestRestTemplate testRestTemplate;
-    private String api;
+    private static String api;
 
     @BeforeEach
-    void contextLoads() throws URISyntaxException {
-        testRestTemplate = new TestRestTemplate();
+    void contextLoads() {
         api = "http://localhost:" + port + "/api/v1/person/";
     }
 
