@@ -12,11 +12,7 @@ import java.util.stream.Collectors;
 @Service
 public class PersonServiceImp implements PersonService {
 
-    private static List<Person> personList;
-
-    public PersonServiceImp() {
-        personList = new ArrayList<>();
-    }
+    private static List<Person> personList = new ArrayList<>();
 
     @Override
     public List<Person> get(String name) {
@@ -38,16 +34,21 @@ public class PersonServiceImp implements PersonService {
             if (!existingPerson.isEmpty()) {
                 return false;
             }
+            personList.add(person);
         }
 
-        personList.add(person);
         return true;
     }
 
     @Override
-    public int delete(String name) {
+    public synchronized int delete(String name) {
         int count = (int) personList.stream().filter(p -> p.getName().equals(name)).count();
         personList.removeIf(person -> person.getName().equals(name));
+
         return count;
+    }
+
+    public static void clearStorage() {
+        personList = new ArrayList<>();
     }
 }

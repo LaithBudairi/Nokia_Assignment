@@ -1,6 +1,7 @@
 package nokia.assignment;
 
 import nokia.assignment.model.Person;
+import nokia.assignment.service.PersonServiceImp;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,18 +21,21 @@ class AssignmentApplicationTests {
     @LocalServerPort
     private int port;
     private TestRestTemplate testRestTemplate;
+    private String api;
 
     @BeforeEach
     void contextLoads() throws URISyntaxException {
         testRestTemplate = new TestRestTemplate();
+        api = "http://localhost:" + port + "/api/v1/person/";
     }
 
     @Test
     public void addPerson_addsNewPerson_addedSuccessfully200() throws URISyntaxException {
+        clearStorage();
+
         Person person = new Person("1", "Steve");
         HttpEntity<Person> request = new HttpEntity<>(person);
-
-        URI uri = new URI("http://localhost:" + port + "/api/v1/person/");
+        URI uri = new URI(api);
         ResponseEntity<Boolean> res = testRestTemplate.postForEntity(uri, request, Boolean.class);
 
         Assertions.assertEquals(HttpStatus.OK, res.getStatusCode());
@@ -39,49 +43,53 @@ class AssignmentApplicationTests {
     }
 
     @Test
-    public void deletePerson_deletesPerson_deletedSuccessfully200() throws URISyntaxException {
-        URI uri;
-        Person[] person = new Person[]{
-                new Person("1", "Steve"),
+    public void deletePerson_deletesPersonsWithSpecifiedName_deletedSuccessfully200() throws URISyntaxException {
+        clearStorage();
+
+        String name = "Steve";
+        URI uri = new URI(api + name);
+
+        Person[] person = new Person[] {
+                new Person("1", name),
                 new Person("2", "Mark"),
-                new Person("3", "Steve")
+                new Person("3", name)
         };
 
         // add person
         for (int i = 0; i < person.length; i++) {
-            uri = new URI("http://localhost:" + port + "/api/v1/person/");
-            HttpEntity<Person> request = new HttpEntity<>(person[i]);
-            testRestTemplate.postForEntity(uri, request, Boolean.class);
+            addPerson(person[i]);
         }
 
         // delete person
-        uri = new URI("http://localhost:" + port + "/api/v1/person/1");
         testRestTemplate.delete(uri);
 
-        // check if deleted (count = 2)
-        String name = "Steve";
-        uri = new URI("http://localhost:" + port + "/api/v1/person/" + name);
+
+        // check if deleted (count = 0)
         ResponseEntity<Person[]> res = testRestTemplate.getForEntity(uri, Person[].class);
+
         Assertions.assertEquals(HttpStatus.OK, res.getStatusCode());
-        Assertions.assertEquals(2, res.getBody().length);
+        Assertions.assertEquals(0, res.getBody().length);
     }
 
     @Test
     public void searchPerson_searchesForPersonsWithSpecifiedName_retrievedSuccessfully200() throws URISyntaxException {
+        clearStorage();
 
-        URI uri;
-        Person[] person = new Person[]{new Person("1", "Steve"), new Person("2", "Mark"), new Person("3", "Steve")};
+        String name = "Steve";
+        URI uri = new URI(api);
+        Person[] person = new Person[] {
+                new Person("1", name),
+                new Person("2", "Mark"),
+                new Person("3", name)
+        };
 
         for (int i = 0; i < person.length; i++) {
-            uri = new URI("http://localhost:" + port + "/api/v1/person/");
             HttpEntity<Person> request = new HttpEntity<>(person[i]);
             testRestTemplate.postForEntity(uri, request, Boolean.class);
         }
 
-        // find person (count = 2)
-        String name = "Steve";
-        uri = new URI("http://localhost:" + port + "/api/v1/person/" + name);
-
+        // search person (count = 2)
+        uri = new URI(api + name);
         ResponseEntity<Person[]> res = testRestTemplate.getForEntity(uri, Person[].class);
 
         Assertions.assertEquals(HttpStatus.OK, res.getStatusCode());
@@ -91,38 +99,22 @@ class AssignmentApplicationTests {
     @Test
     public void addPersonConcurrently_addsTwoPersonsWithSameID_addedOnlyOnePersonSuccessfully() throws Exception {
         boolean[] b = new boolean[2];
+        Person person = new Person("1", "Steve");
+
         Thread t1 = new Thread(() -> {
-            Thread.currentThread().setName("T1");
-            Person person = new Person("1", "Steve");
-            HttpEntity<Person> request = new HttpEntity<>(person);
-            URI uri = null;
             try {
-                uri = new URI("http://localhost:" + port + "/api/v1/person/");
+                b[0] = addPerson(person);
             } catch (URISyntaxException e) {
                 e.printStackTrace();
             }
-
-            ResponseEntity<Boolean> res = testRestTemplate.postForEntity(uri, request, Boolean.class);
-
-            b[0] = res.getBody();
-
         });
 
         Thread t2 = new Thread(() -> {
-            Thread.currentThread().setName("T2");
-            Person person = new Person("1", "Steve");
-            HttpEntity<Person> request = new HttpEntity<>(person);
-            URI uri = null;
             try {
-                uri = new URI("http://localhost:" + port + "/api/v1/person/");
+                b[1] = addPerson(person);
             } catch (URISyntaxException e) {
                 e.printStackTrace();
             }
-
-            ResponseEntity<Boolean> res = testRestTemplate.postForEntity(uri, request, Boolean.class);
-
-            b[1] = res.getBody();
-
         });
 
         t1.start();
@@ -132,5 +124,16 @@ class AssignmentApplicationTests {
         t2.join();
 
         Assertions.assertEquals(false, b[0] && b[1]);
+    }
+
+    private void clearStorage() {
+        PersonServiceImp.clearStorage();
+    }
+
+    private boolean addPerson(Person person) throws URISyntaxException {
+        HttpEntity<Person> request = new HttpEntity<>(person);
+        URI uri = new URI(api);
+        ResponseEntity<Boolean> res = testRestTemplate.postForEntity(uri, request, Boolean.class);
+        return res.getBody();
     }
 }
