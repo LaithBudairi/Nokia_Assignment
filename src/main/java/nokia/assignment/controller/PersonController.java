@@ -1,6 +1,5 @@
 package nokia.assignment.controller;
 
-import nokia.assignment.exception.entity.EntityNotFoundException;
 import nokia.assignment.model.Person;
 import nokia.assignment.service.PersonService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +15,7 @@ public class PersonController {
     private PersonService personService;
 
     @GetMapping(value = "person/{name}")
-    public List<Person> search(@PathVariable(value = "name") String name) throws EntityNotFoundException {
+    public List<Person> search(@PathVariable(value = "name") String name) {
         return personService.get(name);
     }
 

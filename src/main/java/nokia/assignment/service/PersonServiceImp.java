@@ -1,56 +1,46 @@
 package nokia.assignment.service;
 
 
-import nokia.assignment.exception.entity.EntityNotFoundException;
 import nokia.assignment.model.Person;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 public class PersonServiceImp implements PersonService {
 
-    List<Person> personList;
+    private static List<Person> personList;
 
     public PersonServiceImp() {
         personList = new ArrayList<>();
     }
 
     @Override
-    public List<Person> get(String name) throws EntityNotFoundException {
-        List<Person> people = personList.stream().filter(person -> person.getName().equals(name)).collect(Collectors.toList());
-        System.out.println(people);
-        if (people.isEmpty()) {
-            throw new EntityNotFoundException("No person with name=" + name + " was found");
-        }
-        return people;
+    public List<Person> get(String name) {
+        return personList.stream().filter(person -> person.getName().equals(name)).collect(Collectors.toList());
     }
 
     @Override
     public boolean add(Person person) {
-        String id = person.getId();
-        boolean[] personExists = new boolean[1];
-
-        try {
-            personList.forEach(p -> {
-                if (p.getId().equals(id)) {
-                    personExists[0] = true;
-                }
-            });
-
-            if (!personExists[0]) {
-                personList.add(person);
-            } else {
-                return false;
-            }
-        } catch (OutOfMemoryError e) {
-            personList.remove(person);
-            e.printStackTrace();
+        // Check mem
+        double memUsage = ((double) Runtime.getRuntime().freeMemory() / (double) Runtime.getRuntime().totalMemory()) * 100;
+        if (memUsage >= 95) {
             return false;
         }
-        System.out.println(personList.get(0).getName());
+
+        // Check if there is a person with same id
+        synchronized (personList) {
+            String id = person.getId();
+            Optional<Person> existingPerson = personList.stream().filter(p -> p.getId().equals(id)).findFirst();
+            if (!existingPerson.isEmpty()) {
+                return false;
+            }
+        }
+
+        personList.add(person);
         return true;
     }
 
