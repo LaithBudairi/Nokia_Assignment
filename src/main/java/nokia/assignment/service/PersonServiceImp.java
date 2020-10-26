@@ -4,51 +4,54 @@ package nokia.assignment.service;
 import nokia.assignment.model.Person;
 import org.springframework.stereotype.Service;
 
+import java.lang.ref.SoftReference;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class PersonServiceImp implements PersonService {
 
-    private static List<Person> personList = new ArrayList<>();
+    private static ConcurrentHashMap<String, SoftReference<Person>> map = new ConcurrentHashMap<>();
 
     @Override
     public List<Person> get(String name) {
-        return personList.stream().filter(person -> person.getName().equals(name)).collect(Collectors.toList());
+        List<Person> persons = new ArrayList<>();
+
+        map.forEach((k, v) -> {
+            if(v.get().getName().equals(name)) {
+                persons.add(v.get());
+            }
+        });
+
+        return persons;
     }
 
     @Override
     public boolean add(Person person) {
-        // Check mem
-        double memUsage = ((double) Runtime.getRuntime().freeMemory() / (double) Runtime.getRuntime().maxMemory()) * 100;
-        if (memUsage >= 95) {
-            return false;
-        }
+        SoftReference<Person> p = new SoftReference<>(person);
+        SoftReference<Person> existingPerson = map.putIfAbsent(person.getId(), p);
 
-        // Check if there is a person with same id
-        synchronized (personList) {
-            String id = person.getId();
-            Optional<Person> existingPerson = personList.stream().filter(p -> p.getId().equals(id)).findFirst();
-            if (!existingPerson.isEmpty()) {
-                return false;
-            }
-            personList.add(person);
+        if(existingPerson != null) {
+            return false;
         }
 
         return true;
     }
 
     @Override
-    public synchronized int delete(String name) {
-        int count = (int) personList.stream().filter(p -> p.getName().equals(name)).count();
-        personList.removeIf(person -> person.getName().equals(name));
+    public int delete(String name) {
+        int count = map.size();
+        map.forEach((k, v) -> {
+            if(v.get().getName().equals(name)) {
+                map.remove(k);
+            }
+        });
 
-        return count;
+        return count - map.size();
     }
 
     public static void clearStorage() {
-        personList = new ArrayList<>();
+        map.clear();
     }
 }
